@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -6,6 +7,9 @@ using HtmlAgilityPack;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace FunctionApp2
 {
@@ -37,9 +41,23 @@ namespace FunctionApp2
             HtmlWeb web = new HtmlWeb();
             var htmlDoc = web.Load(url);
             var node = htmlDoc.DocumentNode.SelectSingleNode("//head/title");
-            parseResult = req.CreateResponse(HttpStatusCode.OK, "Node Name: " + node.Name + "\n" + node.OuterHtml);
-
+            var blobId = SaveContent(node.Name);
+            parseResult = req.CreateResponse(HttpStatusCode.OK, "Node Name: " + node.Name + "\n" + node.OuterHtml + "Blob Id: " + blobId);
+            
             return parseResult;
+        }
+
+        public static async Task<string> SaveContent(string data)
+        {
+            var _baseUrl = new Uri("https://weatherappstorage2018.blob.core.windows.net/");
+            var _storageCreds = new StorageCredentials("weatherappstorage2018", System.Environment.GetEnvironmentVariable("BlobStorageKey") );
+            var _client = new CloudBlobClient(_baseUrl, _storageCreds);
+            var id = Guid.NewGuid().ToString();
+            var container = _client.GetContainerReference("test-blob");
+            var blob = container.GetBlockBlobReference(id);
+            await blob.UploadTextAsync(data);
+            return id;
+
         }
     }
 }
